@@ -31,14 +31,6 @@ RUN pnpm install --frozen-lockfile --unsafe-perm
 # Build API service
 RUN NODE_ENV=production NX_DAEMON=false pnpm build:api
 
-# Copy environment files
-WORKDIR /usr/src/app/apps/api
-RUN cp src/dotenvcreate.mjs dist/dotenvcreate.mjs
-RUN cp src/.example.env dist/.env
-RUN cp src/.env.test dist/.env.test
-RUN cp src/.env.development dist/.env.development
-RUN cp src/.env.production dist/.env.production
-
 # Production stage
 FROM node:20-alpine3.19 AS production
 
@@ -59,6 +51,7 @@ COPY --chown=1000:1000 --from=builder /usr/src/app/packages ./packages
 COPY --chown=1000:1000 --from=builder /usr/src/app/libs ./libs
 
 ENV NEW_RELIC_NO_CONFIG_FILE=true
+ENV NODE_ENV=production
 
 WORKDIR /usr/src/app/apps/api
-ENTRYPOINT [ "sh", "-c", "node dist/dotenvcreate.mjs -s=$SECRET_NAME -r=$NOVU_REGION -e=$NOVU_ENTERPRISE -v=$NODE_ENV -h=$IS_SELF_HOSTED && pm2-runtime start dist/main.js -i max" ]
+CMD ["pm2-runtime", "start", "dist/main.js", "-i", "max"]
