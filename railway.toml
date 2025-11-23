@@ -1,0 +1,17 @@
+# Railway will auto-detect services based on this config
+
+[[services]]
+name = "novu-api"
+dockerfile = "apps/api/Dockerfile"
+
+[[services]]
+name = "novu-worker"
+dockerfile = "apps/worker/Dockerfile"
+
+[[services]]
+name = "novu-ws"
+dockerfile = "apps/ws/Dockerfile"
+
+[[services]]
+name = "novu-dashboard"
+dockerfile = "apps/dashboard/dockerfile"
