@@ -1,0 +1,18 @@
+{
+    "sourceFile": "apps/worker/Dockerfile",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1763916459748,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1763916459748,
+            "name": "Commit-0",
+            "content": "FROM node:20-alpine3.19 AS dev_base\nRUN apk --update --no-cache add curl g++ make py3-pip\nENV NX_DAEMON=false\n\n\nRUN npm i pm2 -g\nRUN npm --no-update-notifier --no-fund --global install pnpm@10.16.1\nRUN pnpm --version\n\n\nUSER 1000\nWORKDIR /usr/src/app\n\n# ------- DEV BUILD ----------\nFROM dev_base AS dev\nARG PACKAGE_PATH\n\nCOPY --chown=1000:1000 ./meta .\nCOPY --chown=1000:1000 ./deps .\nCOPY --chown=1000:1000 ./pkg .\n\nRUN --mount=type=secret,id=BULL_MQ_PRO_NPM_TOKEN,uid=1000 export BULL_MQ_PRO_NPM_TOKEN=$(cat /run/secrets/BULL_MQ_PRO_NPM_TOKEN) && \\\n    if [ -n \"${BULL_MQ_PRO_NPM_TOKEN}\" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi\n\nRUN --mount=type=cache,id=pnpm-store-worker \\\n pnpm install --filter \"novuhq\" --filter \"{${PACKAGE_PATH}}...\"\\\n --frozen-lockfile\\\n --unsafe-perm\\\n --reporter=silent\n\nRUN --mount=type=secret,id=BULL_MQ_PRO_NPM_TOKEN,uid=1000 export BULL_MQ_PRO_NPM_TOKEN=$(cat /run/secrets/BULL_MQ_PRO_NPM_TOKEN) && NODE_ENV=production NX_DAEMON=false pnpm build:worker\n\nWORKDIR /usr/src/app/apps/worker\n\nRUN cp src/dotenvcreate.mjs dist/dotenvcreate.mjs\nRUN cp src/.example.env dist/.env\nRUN cp src/.env.test dist/.env.test\nRUN cp src/.env.development dist/.env.development\nRUN cp src/.env.production dist/.env.production\n\nWORKDIR /usr/src/app\n\n# ------- ASSETS BUILD ----------\nFROM dev AS assets\n\nWORKDIR /usr/src/app\n\n# Remove all dependencies so later we can only install prod dependencies without devDependencies\nRUN rm -rf node_modules && pnpm recursive exec -- rm -rf ./src ./node_modules\n\n# ------- PRODUCTION BUILD ----------\nFROM dev_base AS prod\nARG PACKAGE_PATH\n\nENV CI=true\n\nWORKDIR /usr/src/app\n\nCOPY --chown=1000:1000 ./meta .\n\n# Get the build artifacts that only include dist folders\nCOPY --chown=1000:1000 --from=assets /usr/src/app .\n\nRUN --mount=type=cache,id=pnpm-store-worker \\\n pnpm install --filter \"{${PACKAGE_PATH}}...\" \\\n --frozen-lockfile \\\n --unsafe-perm \\\n --reporter=silent\n\nENV NEW_RELIC_NO_CONFIG_FILE=true\n\nWORKDIR /usr/src/app/apps/worker\nENTRYPOINT [ \"sh\", \"-c\", \"node dist/dotenvcreate.mjs -s=$SECRET_NAME -r=$NOVU_REGION -e=$NOVU_ENTERPRISE -v=$NODE_ENV -h=$IS_SELF_HOSTED && pm2-runtime start dist/main.js -i max\" ]\n"
+        }
+    ]
+}

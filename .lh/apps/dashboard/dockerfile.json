@@ -1,0 +1,18 @@
+{
+    "sourceFile": "apps/dashboard/dockerfile",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1763916459753,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1763916459753,
+            "name": "Commit-0",
+            "content": "FROM node:20-alpine3.19 AS builder\nRUN apk add g++ make py3-pip\nENV NX_DAEMON=false\n\nWORKDIR /usr/src/app\n\nRUN apk add --no-cache bash\nRUN npm install -g pnpm@10.16.1 --loglevel notice\n\nCOPY .npmrc .\nCOPY package.json .\n\nCOPY apps/dashboard ./apps/dashboard\nCOPY libs ./libs\nCOPY packages ./packages\nCOPY enterprise ./enterprise\nCOPY tsconfig.json .\n\nCOPY nx.json .\nCOPY pnpm-workspace.yaml .\nCOPY pnpm-lock.yaml .\n\nRUN --mount=type=cache,id=pnpm-store-dashboard pnpm install --frozen-lockfile --unsafe-perm\n\nRUN CI='' pnpm build:dashboard --skip-nx-cache\n\nFROM node:20-alpine\n\nRUN npm install -g http-server --loglevel notice\n\nUSER 1000\nWORKDIR /app\n\nCOPY --chown=1000:1000 --from=builder /usr/src/app/apps/dashboard/dist /app/dist\nCOPY --chown=1000:1000 --from=builder /usr/src/app/apps/dashboard/package.json /app/package.json\nCOPY --chown=1000:1000 --from=builder /usr/src/app/apps/dashboard/docker-entrypoint.sh /app/docker-entrypoint.sh  \n\nRUN chmod +x /app/docker-entrypoint.sh\nENTRYPOINT [ \"/app/docker-entrypoint.sh\" ]\n# Expose the port the app runs on\nEXPOSE 4000\nCMD [ \"http-server\", \"dist\", \"-p\", \"4000\", \"-d\", \"false\", \"--proxy\", \"http://localhost:4000?\" ]\n"
+        }
+    ]
+}

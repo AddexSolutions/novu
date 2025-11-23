@@ -60,7 +60,8 @@ COPY --chown=1000:1000 ./meta .
 # Get the build artifacts that only include dist folders
 COPY --chown=1000:1000 --from=assets /usr/src/app .
 
-RUN pnpm install --filter "{${PACKAGE_PATH}}..." \
+RUN --mount=type=cache,id=pnpm-store-worker \
+ pnpm install --filter "{${PACKAGE_PATH}}..." \
  --frozen-lockfile \
  --unsafe-perm \
  --reporter=silent
