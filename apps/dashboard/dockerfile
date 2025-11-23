@@ -27,6 +27,9 @@ COPY pnpm-lock.yaml .
 
 RUN pnpm install --frozen-lockfile --unsafe-perm
 
+# Set VITE_SELF_HOSTED at build time so Vite can alias @clerk/clerk-react to self-hosted mock
+ENV VITE_SELF_HOSTED=true
+
 RUN CI='' pnpm build:dashboard --skip-nx-cache
 
 FROM node:20-alpine
