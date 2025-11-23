@@ -15,6 +15,10 @@ WORKDIR /usr/src/app
 FROM dev_base AS dev
 ARG PACKAGE_PATH
 
+# Disable Nx Cloud for Railway builds
+ENV NX_CLOUD_ACCESS_TOKEN=""
+ENV NX_DAEMON=false
+
 COPY --chown=1000:1000 ./meta .
 COPY --chown=1000:1000 ./deps .
 COPY --chown=1000:1000 ./pkg .
