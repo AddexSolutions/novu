@@ -1,70 +1,62 @@
-FROM node:20-alpine3.19 AS dev_base
-RUN apk add --no-cache g++ make py3-pip
+FROM node:20-alpine3.19 AS builder
+RUN apk add --no-cache g++ make py3-pip bash
 ENV NX_DAEMON=false
-
-# Install global dependencies
-RUN npm --no-update-notifier --no-fund --global install pm2 pnpm@10.16.1&& \
-    pnpm --version
-
-# Set non-root user
-USER 1000
-WORKDIR /usr/src/app
-
-FROM dev_base AS dev
-ARG PACKAGE_PATH
 
 # Disable Nx Cloud for Railway builds
 ENV NX_CLOUD_ACCESS_TOKEN=""
-ENV NX_DAEMON=false
 ENV NX_CLOUD=false
 ENV CI=true
 
-# Copy source code into container
-COPY --chown=1000:1000 . .
+WORKDIR /usr/src/app
 
-RUN if [ -n "${BULL_MQ_PRO_NPM_TOKEN}" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi
+RUN npm install -g pnpm@10.16.1 pm2 --loglevel notice
 
-RUN pnpm install --filter "novuhq" --filter "{${PACKAGE_PATH}}..."\
- --frozen-lockfile\
- --unsafe-perm
+# Copy package files
+COPY .npmrc .
+COPY package.json .
+COPY pnpm-workspace.yaml .
+COPY pnpm-lock.yaml .
 
+# Copy source directories
+COPY apps/api ./apps/api
+COPY libs ./libs
+COPY packages ./packages
+COPY enterprise ./enterprise
+COPY nx.json .
+COPY tsconfig.json .
+
+# Install all dependencies
+RUN pnpm install --frozen-lockfile --unsafe-perm
+
+# Build API service
 RUN NODE_ENV=production NX_DAEMON=false pnpm build:api
 
+# Copy environment files
 WORKDIR /usr/src/app/apps/api
-
 RUN cp src/dotenvcreate.mjs dist/dotenvcreate.mjs
 RUN cp src/.example.env dist/.env
 RUN cp src/.env.test dist/.env.test
 RUN cp src/.env.development dist/.env.development
 RUN cp src/.env.production dist/.env.production
 
+# Production stage
+FROM node:20-alpine3.19 AS production
+
+RUN apk add --no-cache bash
+RUN npm install -g pnpm@10.16.1 pm2 --loglevel notice
+
+USER 1000
 WORKDIR /usr/src/app
 
-# ------- ASSETS BUILD ----------
-FROM dev AS assets
+# Copy built artifacts
+COPY --chown=1000:1000 --from=builder /usr/src/app/apps/api/dist ./apps/api/dist
+COPY --chown=1000:1000 --from=builder /usr/src/app/apps/api/package.json ./apps/api/package.json
 
-WORKDIR /usr/src/app
-
-# Remove all dependencies so later we can only install prod dependencies without devDependencies
-RUN rm -rf node_modules && pnpm recursive exec -- rm -rf ./src ./node_modules
-
-# ------- PRODUCTION BUILD ----------
-FROM dev_base AS prod
-
-ARG PACKAGE_PATH
-
-ENV CI=true
-
-WORKDIR /usr/src/app
-
-# Removed: COPY ./meta . (directory doesn't exist in Railway build context)
-
-# Get the build artifacts that only include dist folders
-COPY --chown=1000:1000 --from=assets /usr/src/app .
-
-RUN pnpm install --filter "{${PACKAGE_PATH}}..." \
- --frozen-lockfile \
- --unsafe-perm
+# Copy necessary dependencies
+COPY --chown=1000:1000 --from=builder /usr/src/app/node_modules ./node_modules
+COPY --chown=1000:1000 --from=builder /usr/src/app/package.json ./package.json
+COPY --chown=1000:1000 --from=builder /usr/src/app/packages ./packages
+COPY --chown=1000:1000 --from=builder /usr/src/app/libs ./libs
 
 ENV NEW_RELIC_NO_CONFIG_FILE=true
 
