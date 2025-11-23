@@ -3,7 +3,7 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 2,
+            "activePatchIndex": 3,
             "patches": [
                 {
                     "date": 1763916459748,
@@ -16,6 +16,10 @@
                 {
                     "date": 1763916589796,
                     "content": "Index: \n===================================================================\n--- \n+++ \n@@ -12,8 +12,12 @@\n \n FROM dev_base AS dev\n ARG PACKAGE_PATH\n \n+# Disable Nx Cloud for Railway builds\n+ENV NX_CLOUD_ACCESS_TOKEN=\"\"\n+ENV NX_DAEMON=false\n+\n COPY --chown=1000:1000 ./meta .\n COPY --chown=1000:1000 ./deps .\n COPY --chown=1000:1000 ./pkg .\n \n"
+                },
+                {
+                    "date": 1763916770052,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -15,21 +15,22 @@\n \n # Disable Nx Cloud for Railway builds\n ENV NX_CLOUD_ACCESS_TOKEN=\"\"\n ENV NX_DAEMON=false\n+ENV NX_CLOUD=false\n+ENV CI=true\n \n COPY --chown=1000:1000 ./meta .\n COPY --chown=1000:1000 ./deps .\n COPY --chown=1000:1000 ./pkg .\n \n-RUN --mount=type=secret,id=BULL_MQ_PRO_NPM_TOKEN,uid=1000 export BULL_MQ_PRO_NPM_TOKEN=$(cat /run/secrets/BULL_MQ_PRO_NPM_TOKEN) && \\\n-    if [ -n \"${BULL_MQ_PRO_NPM_TOKEN}\" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi\n+RUN if [ -n \"${BULL_MQ_PRO_NPM_TOKEN}\" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi\n \n RUN pnpm install --filter \"novuhq\" --filter \"{${PACKAGE_PATH}}...\"\\\n  --frozen-lockfile\\\n  --unsafe-perm\n \n-RUN --mount=type=secret,id=BULL_MQ_PRO_NPM_TOKEN,uid=1000 export BULL_MQ_PRO_NPM_TOKEN=$(cat /run/secrets/BULL_MQ_PRO_NPM_TOKEN) && NODE_ENV=production NX_DAEMON=false pnpm build:api\n+RUN NODE_ENV=production NX_DAEMON=false pnpm build:api\n \n WORKDIR /usr/src/app/apps/api\n \n RUN cp src/dotenvcreate.mjs dist/dotenvcreate.mjs\n@@ -61,10 +62,9 @@\n \n # Get the build artifacts that only include dist folders\n COPY --chown=1000:1000 --from=assets /usr/src/app .\n \n-RUN --mount=type=cache,id=pnpm-store-api \\\n- pnpm install --filter \"{${PACKAGE_PATH}}...\" \\\n+RUN pnpm install --filter \"{${PACKAGE_PATH}}...\" \\\n  --frozen-lockfile \\\n  --unsafe-perm\n \n ENV NEW_RELIC_NO_CONFIG_FILE=true\n"
                 }
             ],
             "date": 1763916459748,
