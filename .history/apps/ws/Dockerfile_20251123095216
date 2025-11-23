@@ -16,8 +16,6 @@ ARG PACKAGE_PATH
 # Disable Nx Cloud for Railway builds
 ENV NX_CLOUD_ACCESS_TOKEN=""
 ENV NX_DAEMON=false
-ENV NX_CLOUD=false
-ENV CI=true
 
 COPY --chown=1000:1000 ./meta .
 COPY --chown=1000:1000 ./deps .
@@ -30,7 +28,7 @@ RUN pnpm install --filter "novuhq" --filter "{${PACKAGE_PATH}}..."\
  --unsafe-perm\
  --reporter=silent
 
-RUN NODE_ENV=production NX_DAEMON=false pnpm build:ws
+RUN --mount=type=secret,id=BULL_MQ_PRO_NPM_TOKEN,uid=1000 export BULL_MQ_PRO_NPM_TOKEN=$(cat /run/secrets/BULL_MQ_PRO_NPM_TOKEN) && NODE_ENV=production NX_DAEMON=false pnpm build:ws
 
 WORKDIR /usr/src/app/apps/ws
 

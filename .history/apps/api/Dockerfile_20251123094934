@@ -16,20 +16,19 @@ ARG PACKAGE_PATH
 # Disable Nx Cloud for Railway builds
 ENV NX_CLOUD_ACCESS_TOKEN=""
 ENV NX_DAEMON=false
-ENV NX_CLOUD=false
-ENV CI=true
 
 COPY --chown=1000:1000 ./meta .
 COPY --chown=1000:1000 ./deps .
 COPY --chown=1000:1000 ./pkg .
 
-RUN if [ -n "${BULL_MQ_PRO_NPM_TOKEN}" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi
+RUN --mount=type=secret,id=BULL_MQ_PRO_NPM_TOKEN,uid=1000 export BULL_MQ_PRO_NPM_TOKEN=$(cat /run/secrets/BULL_MQ_PRO_NPM_TOKEN) && \
+    if [ -n "${BULL_MQ_PRO_NPM_TOKEN}" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi
 
 RUN pnpm install --filter "novuhq" --filter "{${PACKAGE_PATH}}..."\
  --frozen-lockfile\
  --unsafe-perm
 
-RUN NODE_ENV=production NX_DAEMON=false pnpm build:api
+RUN --mount=type=secret,id=BULL_MQ_PRO_NPM_TOKEN,uid=1000 export BULL_MQ_PRO_NPM_TOKEN=$(cat /run/secrets/BULL_MQ_PRO_NPM_TOKEN) && NODE_ENV=production NX_DAEMON=false pnpm build:api
 
 WORKDIR /usr/src/app/apps/api
 
@@ -63,7 +62,8 @@ COPY --chown=1000:1000 ./meta .
 # Get the build artifacts that only include dist folders
 COPY --chown=1000:1000 --from=assets /usr/src/app .
 
-RUN pnpm install --filter "{${PACKAGE_PATH}}..." \
+RUN --mount=type=cache,id=pnpm-store-api \
+ pnpm install --filter "{${PACKAGE_PATH}}..." \
  --frozen-lockfile \
  --unsafe-perm
 

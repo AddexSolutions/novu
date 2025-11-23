@@ -3,11 +3,19 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 2,
             "patches": [
                 {
                     "date": 1763916459753,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1763916554039,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -19,9 +19,9 @@\n COPY nx.json .\n COPY pnpm-workspace.yaml .\n COPY pnpm-lock.yaml .\n \n-RUN --mount=type=cache,id=pnpm-store-dashboard pnpm install --frozen-lockfile --unsafe-perm\n+RUN pnpm install --frozen-lockfile --unsafe-perm\n \n RUN CI='' pnpm build:dashboard --skip-nx-cache\n \n FROM node:20-alpine\n"
+                },
+                {
+                    "date": 1763916589796,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,8 +1,11 @@\n FROM node:20-alpine3.19 AS builder\n RUN apk add g++ make py3-pip\n ENV NX_DAEMON=false\n \n+# Disable Nx Cloud for Railway builds\n+ENV NX_CLOUD_ACCESS_TOKEN=\"\"\n+\n WORKDIR /usr/src/app\n \n RUN apk add --no-cache bash\n RUN npm install -g pnpm@10.16.1 --loglevel notice\n"
                 }
             ],
             "date": 1763916459753,

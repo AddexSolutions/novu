@@ -4,8 +4,6 @@ ENV NX_DAEMON=false
 
 # Disable Nx Cloud for Railway builds
 ENV NX_CLOUD_ACCESS_TOKEN=""
-ENV NX_CLOUD=false
-ENV CI=true
 
 WORKDIR /usr/src/app
 

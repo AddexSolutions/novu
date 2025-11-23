@@ -3,11 +3,19 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 0,
+            "activePatchIndex": 2,
             "patches": [
                 {
                     "date": 1763916459748,
                     "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1763916554040,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -19,10 +19,9 @@\n \n RUN --mount=type=secret,id=BULL_MQ_PRO_NPM_TOKEN,uid=1000 export BULL_MQ_PRO_NPM_TOKEN=$(cat /run/secrets/BULL_MQ_PRO_NPM_TOKEN) && \\\n     if [ -n \"${BULL_MQ_PRO_NPM_TOKEN}\" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi\n \n-RUN --mount=type=cache,id=pnpm-store-ws \\\n- pnpm install --filter \"novuhq\" --filter \"{${PACKAGE_PATH}}...\"\\\n+RUN pnpm install --filter \"novuhq\" --filter \"{${PACKAGE_PATH}}...\"\\\n  --frozen-lockfile\\\n  --unsafe-perm\\\n  --reporter=silent\n \n"
+                },
+                {
+                    "date": 1763916589796,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -12,8 +12,12 @@\n \n FROM dev_base AS dev\n ARG PACKAGE_PATH\n \n+# Disable Nx Cloud for Railway builds\n+ENV NX_CLOUD_ACCESS_TOKEN=\"\"\n+ENV NX_DAEMON=false\n+\n COPY --chown=1000:1000 ./meta .\n COPY --chown=1000:1000 ./deps .\n COPY --chown=1000:1000 ./pkg .\n \n"
                 }
             ],
             "date": 1763916459748,
