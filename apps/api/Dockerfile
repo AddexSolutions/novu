@@ -56,7 +56,7 @@ ENV CI=true
 
 WORKDIR /usr/src/app
 
-COPY --chown=1000:1000 ./meta .
+# Removed: COPY ./meta . (directory doesn't exist in Railway build context)
 
 # Get the build artifacts that only include dist folders
 COPY --chown=1000:1000 --from=assets /usr/src/app .

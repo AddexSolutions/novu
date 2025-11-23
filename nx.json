@@ -86,9 +86,9 @@
     "default": {
       "options": {
         "canTrackAnalytics": false,
-        "nxCloudId": "61d98cffc3343830d132e541"
+        "cacheableOperations": ["build", "lint", "test"]
       },
-      "runner": "nx-cloud"
+      "runner": "nx/tasks-runners/default"
     }
   },
   "useInferencePlugins": false,
