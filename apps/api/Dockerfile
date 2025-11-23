@@ -19,7 +19,8 @@ ENV NX_DAEMON=false
 ENV NX_CLOUD=false
 ENV CI=true
 
-# These directories may not exist in build context - skip copying
+# Copy source code into container
+COPY --chown=1000:1000 . .
 
 RUN if [ -n "${BULL_MQ_PRO_NPM_TOKEN}" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi
 
