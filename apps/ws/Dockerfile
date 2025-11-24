@@ -1,69 +1,65 @@
-FROM node:20-alpine3.19 AS builder
-RUN apk add --no-cache g++ make py3-pip bash
+FROM node:20-alpine3.19 AS dev_base
+RUN apk --update --no-cache add curl g++ make py3-pip bash
 ENV NX_DAEMON=false
+
+RUN npm i pm2 -g
+RUN npm --no-update-notifier --no-fund --global install pnpm@10.16.1
+RUN pnpm --version
+
+USER 1000
+WORKDIR /usr/src/app
+
+# ------- DEV BUILD ----------
+FROM dev_base AS dev
+ARG PACKAGE_PATH
 
 # Disable Nx Cloud for Railway builds
 ENV NX_CLOUD_ACCESS_TOKEN=""
+ENV NX_DAEMON=false
 ENV NX_CLOUD=false
+ENV CI=true
+ENV NX_SKIP_NX_CACHE=true
+ENV NX_CLOUD_DISABLE=true
+
+# Copy source code into container
+COPY --chown=1000:1000 . .
+
+RUN if [ -n "${BULL_MQ_PRO_NPM_TOKEN}" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi
+
+RUN pnpm install --filter "novuhq" --filter "{${PACKAGE_PATH}}..."\
+ --frozen-lockfile\
+ --unsafe-perm\
+ --reporter=silent
+
+RUN NODE_ENV=production NX_DAEMON=false pnpm build:ws
+
+WORKDIR /usr/src/app
+
+# ------- ASSETS BUILD ----------
+FROM dev AS assets
+
+WORKDIR /usr/src/app
+
+# Remove all dependencies so later we can only install prod dependencies without devDependencies
+RUN rm -rf node_modules && pnpm recursive exec -- rm -rf ./src ./node_modules
+
+# ------- PRODUCTION BUILD ----------
+FROM dev_base AS prod
+ARG PACKAGE_PATH
+
 ENV CI=true
 
 WORKDIR /usr/src/app
 
-RUN npm install -g pnpm@10.16.1 pm2 --loglevel notice
+# Get the build artifacts that only include dist folders
+COPY --chown=1000:1000 --from=assets /usr/src/app .
 
-# Copy package files
-COPY .npmrc .
-COPY package.json .
-COPY pnpm-workspace.yaml .
-COPY pnpm-lock.yaml .
-
-# Copy source directories
-COPY apps/ws ./apps/ws
-COPY libs ./libs
-COPY packages ./packages
-COPY enterprise ./enterprise
-COPY nx.json .
-COPY tsconfig.json .
-
-# Install all dependencies
-RUN pnpm install --frozen-lockfile --unsafe-perm
-
-# Build WebSocket service
-RUN NODE_ENV=production NX_DAEMON=false pnpm build:ws
-
-# Production stage
-FROM node:20-alpine3.19 AS production
-
-RUN apk add --no-cache bash
-RUN npm install -g pnpm@10.16.1 pm2 --loglevel notice
-
-USER 1000
-WORKDIR /usr/src/app
-
-# Copy built artifacts
-COPY --chown=1000:1000 --from=builder /usr/src/app/apps/ws/dist ./apps/ws/dist
-COPY --chown=1000:1000 --from=builder /usr/src/app/apps/ws/package.json ./apps/ws/package.json
-
-# Copy workspace configuration
-COPY --chown=1000:1000 --from=builder /usr/src/app/package.json ./package.json
-COPY --chown=1000:1000 --from=builder /usr/src/app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY --chown=1000:1000 --from=builder /usr/src/app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --chown=1000:1000 --from=builder /usr/src/app/.npmrc ./.npmrc
-
-# Copy built packages and libs (including their dist folders)
-COPY --chown=1000:1000 --from=builder /usr/src/app/packages ./packages
-COPY --chown=1000:1000 --from=builder /usr/src/app/libs ./libs
-
-# Copy node_modules from builder
-COPY --chown=1000:1000 --from=builder /usr/src/app/node_modules ./node_modules
-
-# Recreate workspace symlinks by running pnpm install (doesn't reinstall, just fixes links)
-USER root
-RUN pnpm install --offline --frozen-lockfile
-USER 1000
+RUN pnpm install --filter "{${PACKAGE_PATH}}..." \
+ --frozen-lockfile \
+ --unsafe-perm \
+ --reporter=silent
 
 ENV NEW_RELIC_NO_CONFIG_FILE=true
-ENV NODE_ENV=production
 
 WORKDIR /usr/src/app/apps/ws
 CMD ["pm2-runtime", "start", "dist/main.js", "-i", "max"]
