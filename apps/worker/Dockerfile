@@ -23,7 +23,8 @@ ENV CI=true
 ENV NX_SKIP_NX_CACHE=true
 ENV NX_CLOUD_DISABLE=true
 
-# These directories may not exist in build context - skip copying
+# Copy source code into container
+COPY --chown=1000:1000 . .
 
 RUN if [ -n "${BULL_MQ_PRO_NPM_TOKEN}" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi
 
@@ -72,5 +73,10 @@ RUN pnpm install --filter "{${PACKAGE_PATH}}..." \
 
 ENV NEW_RELIC_NO_CONFIG_FILE=true
 
+# MongoDB connection pool defaults (optimized for Railway)
+ENV MONGO_MIN_POOL_SIZE=2
+ENV MONGO_MAX_POOL_SIZE=10
+ENV MONGO_MAX_IDLE_TIME_IN_MS=60000
+
 WORKDIR /usr/src/app/apps/worker
-ENTRYPOINT [ "sh", "-c", "node dist/dotenvcreate.mjs -s=$SECRET_NAME -r=$NOVU_REGION -e=$NOVU_ENTERPRISE -v=$NODE_ENV -h=$IS_SELF_HOSTED && pm2-runtime start dist/main.js -i max" ]
+ENTRYPOINT [ "sh", "-c", "node dist/dotenvcreate.mjs -s=$SECRET_NAME -r=$NOVU_REGION -e=$NOVU_ENTERPRISE -v=$NODE_ENV -h=$IS_SELF_HOSTED && node dist/main.js" ]

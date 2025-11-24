@@ -53,5 +53,10 @@ RUN pnpm install --frozen-lockfile --unsafe-perm
 
 ENV NEW_RELIC_NO_CONFIG_FILE=true
 
+# MongoDB connection pool defaults (optimized for Railway)
+ENV MONGO_MIN_POOL_SIZE=2
+ENV MONGO_MAX_POOL_SIZE=10
+ENV MONGO_MAX_IDLE_TIME_IN_MS=60000
+
 WORKDIR /usr/src/app/apps/ws
-CMD ["pm2-runtime", "start", "dist/main.js", "-i", "max"]
+CMD ["node", "dist/main.js"]
