@@ -271,6 +271,42 @@ Replace the placeholder secrets in your API and Worker services.
 - Restart worker service
 - Check worker logs for errors
 
+### MongoDB resource exhaustion / Thread creation failures
+
+**Symptoms:**
+```
+pthread_create failed: Resource temporarily unavailable
+Failed to create service entry worker thread
+connection <monitor> to X.X.X.X:27017 closed
+```
+
+**Root Cause:**
+MongoDB's thread pool is exhausted or corrupted. This can happen with:
+- Too many concurrent connections
+- Memory pressure on the MongoDB container
+- Kernel-level resource limits hit
+
+**Fix:**
+1. **Redeploy MongoDB** (not just restart):
+   - Railway Dashboard → MongoDB service
+   - Settings → Click "Redeploy"
+   - This rebuilds the container from scratch, clearing thread pool corruption
+
+2. **Increase MongoDB Resources** (if issue persists):
+   - Railway Dashboard → MongoDB service
+   - Settings → Resources
+   - Increase Memory to at least 1GB
+   - Increase CPU if available
+
+3. **Reduce Connection Pool Sizes** (if frequently occurring):
+   - Update API/Worker/WS services:
+   ```bash
+   MONGO_MIN_POOL_SIZE=10  # Down from 50
+   MONGO_MAX_POOL_SIZE=100 # Down from 500
+   ```
+
+**Note:** Restart alone won't fix this issue - you need a full redeploy to rebuild the container.
+
 ## Scaling
 
 Railway allows you to scale services:
@@ -292,11 +328,45 @@ Recommended scaling:
 **Free Tier:**
 Railway provides $5 free credits per month. For production use, you'll likely need a paid plan.
 
+### Use Watch Patterns (Critical for Cost Savings!)
+
+**The configurations in `railway-*.json` files already include watch patterns that prevent unnecessary rebuilds.**
+
+Without watch patterns, **every single Git commit triggers ALL services to rebuild**, even if you only changed one file. This dramatically increases costs.
+
+**How it works:**
+- Each service only rebuilds when files in its watch patterns change
+- Example: Editing `apps/dashboard/src/components/Button.tsx` only triggers Dashboard rebuild
+- Other services (API, Worker, WS) don't rebuild, saving time and money
+
+**Watch Pattern Configuration:**
+```json
+{
+  "build": {
+    "watchPatterns": [
+      "apps/api/**",        // Only rebuild when API code changes
+      "libs/**",            // Or shared library code changes
+      "packages/**",        // Or package code changes
+      "pnpm-lock.yaml",    // Or dependencies change
+      "package.json",
+      ".npmrc"
+    ]
+  }
+}
+```
+
+**Cost Impact:**
+- **Before**: 4 services × every commit = 4× build cost per commit
+- **After**: Only services with changed files rebuild = 1× build cost per commit (typically)
+- **Savings**: 75% reduction in build costs for most commits
+
 **Tips:**
 1. Use Railway's MongoDB/Redis plugins (optimized pricing)
-2. Scale down non-production environments
-3. Use external S3-compatible storage (cheaper than Railway volumes)
-4. Monitor resource usage in Railway dashboard
+2. **Commit these railway-*.json files to enable watch patterns** ✅
+3. Scale down non-production environments
+4. Use external S3-compatible storage (cheaper than Railway volumes)
+5. Monitor resource usage in Railway dashboard
+6. Group related changes in single commits to minimize builds
 
 ## Advanced: Using External Services
 
