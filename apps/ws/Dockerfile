@@ -44,13 +44,20 @@ WORKDIR /usr/src/app
 COPY --chown=1000:1000 --from=builder /usr/src/app/apps/ws/dist ./apps/ws/dist
 COPY --chown=1000:1000 --from=builder /usr/src/app/apps/ws/package.json ./apps/ws/package.json
 
-# Copy necessary dependencies
-COPY --chown=1000:1000 --from=builder /usr/src/app/node_modules ./node_modules
+# Copy workspace configuration
 COPY --chown=1000:1000 --from=builder /usr/src/app/package.json ./package.json
 COPY --chown=1000:1000 --from=builder /usr/src/app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --chown=1000:1000 --from=builder /usr/src/app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --chown=1000:1000 --from=builder /usr/src/app/.npmrc ./.npmrc
+
+# Copy built packages and libs (including their dist folders)
 COPY --chown=1000:1000 --from=builder /usr/src/app/packages ./packages
 COPY --chown=1000:1000 --from=builder /usr/src/app/libs ./libs
+
+# Install production dependencies and recreate workspace symlinks
+USER root
+RUN pnpm install --prod --frozen-lockfile
+USER 1000
 
 ENV NEW_RELIC_NO_CONFIG_FILE=true
 ENV NODE_ENV=production
