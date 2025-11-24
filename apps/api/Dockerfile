@@ -54,9 +54,12 @@ COPY --chown=1000:1000 --from=builder /usr/src/app/.npmrc ./.npmrc
 COPY --chown=1000:1000 --from=builder /usr/src/app/packages ./packages
 COPY --chown=1000:1000 --from=builder /usr/src/app/libs ./libs
 
-# Install production dependencies and recreate workspace symlinks
+# Copy node_modules from builder
+COPY --chown=1000:1000 --from=builder /usr/src/app/node_modules ./node_modules
+
+# Recreate workspace symlinks by running pnpm install (doesn't reinstall, just fixes links)
 USER root
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --offline --frozen-lockfile
 USER 1000
 
 ENV NEW_RELIC_NO_CONFIG_FILE=true
