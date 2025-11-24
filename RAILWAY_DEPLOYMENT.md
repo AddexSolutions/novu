@@ -61,7 +61,10 @@ API_PORT=3000
 PORT=3000
 
 # === DATABASE (from MongoDB plugin) ===
-MONGO_URL=${{MongoDB.MONGO_URL}}
+# IMPORTANT: Use MONGO_PRIVATE_URL to avoid egress fees!
+# MONGO_URL connects over public internet (costs money)
+# MONGO_PRIVATE_URL connects over Railway's private network (FREE)
+MONGO_URL=${{MongoDB.MONGO_PRIVATE_URL}}
 MONGO_MIN_POOL_SIZE=50
 MONGO_MAX_POOL_SIZE=500
 
@@ -360,13 +363,33 @@ Without watch patterns, **every single Git commit triggers ALL services to rebui
 - **After**: Only services with changed files rebuild = 1× build cost per commit (typically)
 - **Savings**: 75% reduction in build costs for most commits
 
-**Tips:**
-1. Use Railway's MongoDB/Redis plugins (optimized pricing)
-2. **Commit these railway-*.json files to enable watch patterns** ✅
-3. Scale down non-production environments
-4. Use external S3-compatible storage (cheaper than Railway volumes)
-5. Monitor resource usage in Railway dashboard
-6. Group related changes in single commits to minimize builds
+**Additional Cost Optimization Tips:**
+
+1. **Use Private Network Endpoints (Critical!)** 🚨
+   - Railway charges egress fees for data leaving their network
+   - **Always use `MONGO_PRIVATE_URL` instead of `MONGO_URL`**
+   - **Always use `REDIS_PRIVATE_URL` instead of `REDIS_URL`**
+   - Private endpoints use Railway's internal network (FREE)
+   - Public endpoints route through internet (COSTS MONEY)
+
+   **How to check:**
+   - Railway Dashboard → Each service → Variables tab
+   - Look for warnings: "This variable references a public endpoint"
+   - Replace `${{MongoDB.MONGO_URL}}` with `${{MongoDB.MONGO_PRIVATE_URL}}`
+   - Replace `${{Redis.REDIS_URL}}` with `${{Redis.REDIS_PRIVATE_URL}}`
+
+   **Cost Impact:**
+   - API/Worker/WS constantly query MongoDB/Redis
+   - Using public endpoints = $$ per GB of data transfer
+   - Using private endpoints = FREE
+   - **Savings: Can be 50%+ of your total Railway bill**
+
+2. Use Railway's MongoDB/Redis plugins (optimized pricing)
+3. **Commit these railway-*.json files to enable watch patterns** ✅
+4. Scale down non-production environments
+5. Use external S3-compatible storage (cheaper than Railway volumes)
+6. Monitor resource usage in Railway dashboard
+7. Group related changes in single commits to minimize builds
 
 ## Advanced: Using External Services
 
