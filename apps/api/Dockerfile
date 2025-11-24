@@ -47,6 +47,8 @@ COPY --chown=1000:1000 --from=builder /usr/src/app/apps/api/package.json ./apps/
 # Copy necessary dependencies
 COPY --chown=1000:1000 --from=builder /usr/src/app/node_modules ./node_modules
 COPY --chown=1000:1000 --from=builder /usr/src/app/package.json ./package.json
+COPY --chown=1000:1000 --from=builder /usr/src/app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --chown=1000:1000 --from=builder /usr/src/app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --chown=1000:1000 --from=builder /usr/src/app/packages ./packages
 COPY --chown=1000:1000 --from=builder /usr/src/app/libs ./libs
 
