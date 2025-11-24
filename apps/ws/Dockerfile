@@ -31,7 +31,7 @@ RUN pnpm install --filter "novuhq" --filter "{${PACKAGE_PATH}}..."\
  --unsafe-perm\
  --reporter=silent
 
-RUN NODE_ENV=production NX_DAEMON=false pnpm build:ws
+RUN NODE_ENV=production NX_DAEMON=false pnpm run build:ws
 
 WORKDIR /usr/src/app
 
