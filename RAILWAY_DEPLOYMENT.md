@@ -64,9 +64,14 @@ PORT=3000
 # IMPORTANT: Use MONGO_PRIVATE_URL to avoid egress fees!
 # MONGO_URL connects over public internet (costs money)
 # MONGO_PRIVATE_URL connects over Railway's private network (FREE)
-MONGO_URL=${{MongoDB.MONGO_PRIVATE_URL}}
-MONGO_MIN_POOL_SIZE=50
-MONGO_MAX_POOL_SIZE=500
+MONGO_URL=${{MongoDB.MONGO_PRIVATE_URL}}/novu
+
+# CRITICAL: Keep connection pools LOW on Railway
+# Railway's managed MongoDB supports ~100-500 total connections
+# With 3 services, each service should use small pools
+MONGO_MIN_POOL_SIZE=2
+MONGO_MAX_POOL_SIZE=10
+MONGO_MAX_IDLE_TIME_IN_MS=60000
 
 # === REDIS (from Redis plugin) ===
 REDIS_HOST=${{Redis.REDIS_HOST}}
@@ -284,31 +289,58 @@ connection <monitor> to X.X.X.X:27017 closed
 ```
 
 **Root Cause:**
-MongoDB's thread pool is exhausted or corrupted. This can happen with:
-- Too many concurrent connections
-- Memory pressure on the MongoDB container
-- Kernel-level resource limits hit
+Too many concurrent database connections overwhelming Railway's managed MongoDB. This happens when:
+- **PM2 cluster mode multiplies connections** - Each PM2 process creates its own connection pool
+- **Excessive connection pool sizes** - Values like 500 create thousands of connections
+- **Formula:** Total connections = Services × PM2 instances × Max pool size
 
-**Fix:**
-1. **Redeploy MongoDB** (not just restart):
-   - Railway Dashboard → MongoDB service
-   - Settings → Click "Redeploy"
-   - This rebuilds the container from scratch, clearing thread pool corruption
+**Example of the problem:**
+```
+3 services × 2 PM2 instances × 500 max pool = 3,000 connections
+Railway's MongoDB capacity: ~100-500 connections maximum
+Result: Immediate thread exhaustion and connection failures
+```
 
-2. **Increase MongoDB Resources** (if issue persists):
-   - Railway Dashboard → MongoDB service
-   - Settings → Resources
-   - Increase Memory to at least 1GB
-   - Increase CPU if available
+**Fix (CRITICAL - Do this before redeploying):**
 
-3. **Reduce Connection Pool Sizes** (if frequently occurring):
-   - Update API/Worker/WS services:
+1. **Remove PM2 Cluster Mode:**
+   - The `railway-*.json` files are already configured correctly with `node dist/main.js`
+   - If you manually set start commands, use `node dist/main.js` NOT `pm2-runtime start dist/main.js -i max`
+   - Railway handles horizontal scaling natively - use their Replicas feature instead
+
+2. **Reduce Connection Pool Sizes:**
+   - Update API/Worker/WS services environment variables:
    ```bash
-   MONGO_MIN_POOL_SIZE=10  # Down from 50
-   MONGO_MAX_POOL_SIZE=100 # Down from 500
+   MONGO_MIN_POOL_SIZE=2
+   MONGO_MAX_POOL_SIZE=10
+   MONGO_MAX_IDLE_TIME_IN_MS=60000
    ```
+   - **New connection math:** 3 services × 1 instance × 10 max = 30 connections (safe!)
 
-**Note:** Restart alone won't fix this issue - you need a full redeploy to rebuild the container.
+3. **Use Private Network Endpoint:**
+   ```bash
+   MONGO_URL=${{MongoDB.MONGO_PRIVATE_URL}}/novu
+   ```
+   - Don't forget the `/novu` database name at the end!
+
+4. **Then Redeploy:**
+   - After making configuration changes above
+   - Redeploy MongoDB: Railway Dashboard → MongoDB service → Settings → Redeploy
+   - Redeploy all services (API, Worker, WS) to pick up new connection settings
+
+**Horizontal Scaling on Railway:**
+If you need more performance after the fixes:
+- Railway Dashboard → Service → Settings → Resources → Replicas
+- Increase replicas to 2-3 instances
+- Each replica gets its own 2-10 connection pool
+- Example: 3 services × 2 replicas × 10 max = 60 connections (still safe!)
+
+**Why PM2 cluster mode doesn't work on Railway:**
+- Railway already provides container-level horizontal scaling
+- PM2 cluster mode creates multiple processes per container
+- Each process multiplies database connections
+- Results in connection pool exhaustion on managed databases
+- Use Railway's native scaling instead for better resource management
 
 ## Scaling
 

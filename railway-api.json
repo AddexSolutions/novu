@@ -13,7 +13,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "pm2-runtime start dist/main.js -i max",
+    "startCommand": "node dist/main.js",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/v1/health-check",
