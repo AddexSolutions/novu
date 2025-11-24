@@ -11,7 +11,6 @@ WORKDIR /usr/src/app
 
 # ------- DEV BUILD ----------
 FROM dev_base AS dev
-ARG PACKAGE_PATH
 
 # Disable Nx Cloud for Railway builds
 ENV NX_CLOUD_ACCESS_TOKEN=""
@@ -26,10 +25,7 @@ COPY --chown=1000:1000 . .
 
 RUN if [ -n "${BULL_MQ_PRO_NPM_TOKEN}" ] ; then echo 'Building with Enterprise Edition of Novu'; rm -f .npmrc ; cp .npmrc-cloud .npmrc ; fi
 
-RUN pnpm install --filter "novuhq" --filter "{${PACKAGE_PATH}}..."\
- --frozen-lockfile\
- --unsafe-perm\
- --reporter=silent
+RUN pnpm install --frozen-lockfile --unsafe-perm
 
 RUN NODE_ENV=production NX_DAEMON=false pnpm run build:ws
 
@@ -45,7 +41,6 @@ RUN rm -rf node_modules && pnpm recursive exec -- rm -rf ./src ./node_modules
 
 # ------- PRODUCTION BUILD ----------
 FROM dev_base AS prod
-ARG PACKAGE_PATH
 
 ENV CI=true
 
@@ -54,10 +49,7 @@ WORKDIR /usr/src/app
 # Get the build artifacts that only include dist folders
 COPY --chown=1000:1000 --from=assets /usr/src/app .
 
-RUN pnpm install --filter "{${PACKAGE_PATH}}..." \
- --frozen-lockfile \
- --unsafe-perm \
- --reporter=silent
+RUN pnpm install --frozen-lockfile --unsafe-perm
 
 ENV NEW_RELIC_NO_CONFIG_FILE=true
 
